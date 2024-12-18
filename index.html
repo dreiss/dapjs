@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>WebUSB Debug Server</title>
+    <meta charset="UTF-8">
+
+    <script type="text/javascript" src="https://armmbed.github.io/dapjs/dist/dap.umd.js"></script>
+    <script>
+        async function start() {
+            await new Promise((resolve) =>
+                document.addEventListener("DOMContentLoaded", resolve));
+            const connect_button = document.getElementById("connect-button");
+
+            connect_button.addEventListener("click", async () => {
+                const device = await navigator.usb.requestDevice({
+                    filters: [{ vendorId: 0x2E8A, productId: 0x000C }]
+                });
+                if (!device) {
+                    return;
+                }
+                connect_button.disabled = true;
+
+                const transport = new DAPjs.WebUSB(device);
+                const probe = new DAPjs.CmsisDAP(transport);
+                await probe.connect();
+                const caps = {
+                    "VENDOR_ID": 0x01,
+                    "PRODUCT_ID": 0x02,
+                    "SERIAL_NUMBER": 0x03,
+                    "CMSIS_DAP_FW_VERSION": 0x04,
+                    "TARGET_DEVICE_VENDOR": 0x05,
+                    "TARGET_DEVICE_NAME": 0x06,
+                    "CAPABILITIES": 0xF0,
+                };
+
+                const log_element = document.getElementById("log-text");
+                for (const [name, code] of Object.entries(caps)) {
+                    let value = await probe.dapInfo(code);
+                    console.log(name, value);
+                    log_element.appendChild(document.createTextNode(`${name}: ${value}\n`));
+                }
+            });
+        }
+        start();
+    </script>
+
+</head>
+
+<body>
+    <button id="connect-button">Connect to Probe</button>
+    <pre id="log-text"></pre>
+</body>
+
+</html>
